@@ -1,4 +1,4 @@
-use std::{error::Error, fs, io::Write, path::PathBuf};
+use std::{error::Error, fs::{self, remove_file}, io::Write, path::PathBuf};
 
 use base64::{Engine, engine::general_purpose};
 use bt_logger::{get_error, log_error};
@@ -107,6 +107,39 @@ impl BTCache {
         let file_data_bytes = fs::read(full_file_path)?;
         Ok(general_purpose::STANDARD.encode(file_data_bytes))
     }
+
+    ///The invalidate_cache function is responsible for removing a cached file from the local filesystem. 
+    ///This function is typically used to clear stale or outdated cache entries, ensuring that subsequent requests for the specified URL 
+    ///will fetch fresh data rather than using cached content.
+    /// 
+    /// #Parameters
+    /// * url: &str, A string slice representing the URL of the cached resource to be invalidated. This parameter is used to determine which cached file should be removed
+    /// 
+    /// #Returns
+    /// Result<(), Box<dyn Error>>
+    ///     * Success: Ok(()) - Indicates that the cache file was successfully removed
+    ///     * Error: Err(Box<dyn Error>) - Contains a boxed error object describing what went wrong during the cache invalidation process
+    pub fn invalidate_cache(&self, url: &str)-> Result<(),Box<dyn Error>> {
+        let full_file_path = self.get_local_file_path(url)?;
+        let _r = remove_file(full_file_path)?;
+        Ok(())
+    }
+
+    ///The refresh_cache function is designed to refresh or revalidate a cached resource by first invalidating the existing cache entry 
+    ///and then returning the local file path where the refreshed content is stored.
+    /// 
+    /// #Parameters
+    /// * url: &str, A string slice representing the URL of the cached resource to be invalidated. This parameter is used to determine which cached file should be removed
+    /// 
+    /// #Returns
+    /// Result<(), Box<dyn Error>>:
+    ///     * Success: Ok(String) - Returns the local file path where the refreshed cache content is stored
+    ///     * Error: Err(Box<dyn Error>) - Contains a boxed error object describing what went wrong during the cache refresh process
+    pub fn refresh_cache(&self, url: &str)-> Result<String,Box<dyn Error>> {
+       self.invalidate_cache(url)?;
+       let file_path = self.get_local_file_path(url)?;
+       Ok(file_path)
+    }
 }
 
 //************** */
@@ -114,21 +147,54 @@ impl BTCache {
 //************* */
 #[cfg(test)]
 mod bt_cache_tests {
+    use regex::Regex;
+
     use super::*;
 
     const FILE_URL: &str = "https://avatars.githubusercontent.com/u/188628667?v=4";
-    
+    const APP_NAME: &str = "bt_cache";    
+
     #[test]
     fn test_get_file_path_success() {
-        let local_cache = BTCache::new(Some("bt_cache")).unwrap();
+        let local_cache = BTCache::new(Some(APP_NAME)).unwrap();
         let p = local_cache.get_local_file_path(FILE_URL).unwrap();
-        assert_eq!(p,"/home/super/.local/share/bt_cache/cache/Pe2MEfGkJXVt54yoLZ2ziRh9v4fGIJcRWQE98MtwcYTSNgJyE4ec6lZ4tSdolTCN9SA-wVrhmtP-8HJ-7jVWGg");
+        let re = Regex::new(r"^/home/.*/\.local/share/bt_cache/cache/Pe2MEfGkJXVt54yoLZ2ziRh9v4fGIJcRWQE98MtwcYTSNgJyE4ec6lZ4tSdolTCN9SA-wVrhmtP-8HJ-7jVWGg").unwrap();   
+        assert!(re.is_match(&p));
     }
 
     #[test]
     fn test_get_file_data_success() {
-        let local_cache = BTCache::new(Some("bt_cache")).unwrap();
+        let local_cache = BTCache::new(Some(APP_NAME)).unwrap();
         let p = local_cache.get_file_data_base64(FILE_URL);
         assert!(p.is_ok());
     }    
+
+    #[test]
+    fn test_get_file_data_fail() {
+        let local_cache = BTCache::new(Some(APP_NAME)).unwrap();
+        let p = local_cache.get_file_data_base64("http://invalidurl.com/fake_file.unknown");
+        assert!(p.is_err());
+    }    
+
+    #[test]
+    fn test_invaldiate_success() {
+        let local_cache = BTCache::new(Some(APP_NAME)).unwrap();
+        let r = local_cache.invalidate_cache(FILE_URL);
+        assert!(r.is_ok())
+    }
+
+    #[test]
+    fn test_invaldiate_fail() {
+        let local_cache = BTCache::new(Some(APP_NAME)).unwrap();
+        let r = local_cache.invalidate_cache("http://invalidurl.com/fake_file.unknown");
+        assert!(r.is_err())
+    }    
+    
+    #[test]
+    fn test_refresh_success() {
+        let local_cache = BTCache::new(Some(APP_NAME)).unwrap();
+        let r = local_cache.refresh_cache(FILE_URL);
+        assert!(r.is_ok())
+    }
+
 }

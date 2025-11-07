@@ -101,3 +101,39 @@ pub fn get_local_usr_data_path(app_folder_name: Option<&str>, subfolder: Option<
 
     Ok(path)
 }
+
+//*************** */
+//UNIT TEST     **/
+//************** */
+#[cfg(test)]
+mod info_app_tests {
+    use regex::Regex;
+
+    use super::*;
+    const APP_NAME: &str = "bt_file_cache";
+
+    #[test]
+    fn test_get_app_path_no_create_success() {
+        let subfolder = "db";
+        let re = Regex::new(r"^/home/.*/\.local/share/bt_file_cache/db").unwrap();
+        let df = get_local_usr_data_path(Some(APP_NAME), Some(subfolder), false).unwrap();
+        //assert_eq!(get_local_usr_data_path(Some("db"), false).unwrap(),"");
+        assert!(re.is_match(&df));
+    }
+
+    #[test]
+    fn test_get_app_path_create_fail() {
+        let subfolder = ":/?\0'"; //Should not be able to create this folder
+        let df = get_local_usr_data_path(Some(APP_NAME), Some(subfolder), true);
+        assert!(df.is_err())
+    }
+
+        #[test]
+    fn test_get_app_path_create_success() {
+        let subfolder = "db.test"; //Should not be able to create this folder
+        let re = Regex::new(r"^/home/.*/\.local/share/bt_file_cache/db.test").unwrap();        
+        let df = get_local_usr_data_path(Some(APP_NAME), Some(subfolder), true);
+        assert!(df.is_ok());
+        assert!(re.is_match(&df.unwrap()));
+    }
+}
