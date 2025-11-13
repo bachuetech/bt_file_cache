@@ -179,6 +179,7 @@ mod bt_cache_tests {
     #[test]
     fn test_invaldiate_success() {
         let local_cache = BTCache::new(Some(APP_NAME)).unwrap();
+        let _ = local_cache.get_file_data_base64(FILE_URL);
         let r = local_cache.invalidate_cache(FILE_URL);
         assert!(r.is_ok())
     }

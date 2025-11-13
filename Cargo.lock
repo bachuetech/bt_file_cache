@@ -55,7 +55,7 @@ dependencies = [
 
 [[package]]
 name = "bt_file_cache"
-version = "0.1.1"
+version = "0.1.2"
 dependencies = [
  "base64",
  "bt_logger",
@@ -67,12 +67,13 @@ dependencies = [
 
 [[package]]
 name = "bt_logger"
-version = "0.2.5"
+version = "0.3.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "ba9f6ab9872db3ac5b98e7534d7d79d054fc1ec602c9025d37d19e5216e68a2c"
+checksum = "3b4f2776a3a20f2880ec7d16b8fdac6b9324d467eaf170a54da36b6422705bfb"
 dependencies = [
  "chrono",
- "lazy_static",
+ "once_cell",
+ "tokio",
 ]
 
 [[package]]
@@ -654,12 +655,6 @@ checksum = "ecc2af9a1119c51f12a14607e783cb977bde58bc069ff0c3da1095e635d70654"
 dependencies = [
  "cpufeatures",
 ]
-
-[[package]]
-name = "lazy_static"
-version = "1.5.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "bbd2bcb4c963f2ddae06a2efc7e9f3591312473c50c6685e1f298068316e66fe"
 
 [[package]]
 name = "libc"
@@ -1353,7 +1348,19 @@ dependencies = [
  "mio",
  "pin-project-lite",
  "socket2",
+ "tokio-macros",
  "windows-sys 0.61.2",
+]
+
+[[package]]
+name = "tokio-macros"
+version = "2.6.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "af407857209536a95c8e56f8231ef2c2e2aff839b22e07a1ffcbc617e9db9fa5"
+dependencies = [
+ "proc-macro2",
+ "quote",
+ "syn",
 ]
 
 [[package]]

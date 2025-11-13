@@ -27,6 +27,8 @@ match cache.refresh_cache("https://bachuetech.biz/fake_image.png") {
     * Initial Release
 * 0.1.1
     * Added invalidate cache and refresh cache functions
+* 0.1.1
+    * Update dependencies    
 
 ## License
 GPL-3.0-only

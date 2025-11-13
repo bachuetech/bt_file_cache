@@ -21,7 +21,7 @@ static DATA_PATH: Lazy<PathBuf> = Lazy::new(|| {
     {
         use std::{env, path::PathBuf};
         let base = env::var("LOCALAPPDATA").unwrap_or_else(|_| FALLBACK_DIR.to_string());
-        return PathBuf::from(base); //.join(app_name);
+        return PathBuf::from(base); 
     }
 
     #[cfg(target_os = "macos")]
@@ -30,7 +30,6 @@ static DATA_PATH: Lazy<PathBuf> = Lazy::new(|| {
         return PathBuf::from(base)
             .join("Library")
             .join("Application Support");
-            //.join(app_name);
     }
 
     #[cfg(target_os = "linux")]
@@ -40,7 +39,7 @@ static DATA_PATH: Lazy<PathBuf> = Lazy::new(|| {
         let base = env::var("XDG_DATA_HOME")
             .or_else(|_| env::var("HOME").map(|h| format!("{}/.local/share", h)))
             .unwrap_or_else(|_| FALLBACK_DIR.to_string());
-        return PathBuf::from(base);//.join(app_name);
+        return PathBuf::from(base);
     }
 
     #[cfg(target_os = "android")]
