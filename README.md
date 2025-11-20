@@ -33,6 +33,8 @@ match cache.refresh_cache("https://bachuetech.biz/fake_image.png") {
     * Added async functions for all the cache sync functions
 * 0.1.4
     * Validate URL in advance for better error messaging    
+* 0.1.5
+    * Added 10 seconds timeout to file download and default user agent  
 
 ## License
 GPL-3.0-only

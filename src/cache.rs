@@ -1,4 +1,4 @@
-use std::{error::Error, fs::{self, remove_file}, io::Write, path::PathBuf};
+use std::{env, error::Error, fs::{self, remove_file}, io::Write, path::PathBuf, time::Duration};
 
 use base64::{Engine, engine::general_purpose};
 use bt_logger::{get_error, log_error};
@@ -8,7 +8,21 @@ use sha3::{Digest, Sha3_512};
 
 use crate::folder_manager::get_local_usr_data_path;
 
-static HTTP_CLIENT: sync::Lazy<Client> = sync::Lazy::new(|| reqwest::Client::new());
+static DEFAULT_USER_AGENT: sync::Lazy<String> = sync::Lazy::new(||{
+    format!("Mozilla/5.0 ({}; {}; {}) {}/{}", env::consts::FAMILY, env::consts::OS, env::consts::ARCH, option_env!("CARGO_PKG_NAME").unwrap_or("bt_file_cache"), option_env!("CARGO_PKG_VERSION").unwrap_or("0.0.1b"))
+});
+
+static HTTP_CLIENT: sync::Lazy<Client> = sync::Lazy::new(||{ 
+        const CLIENT_REQUEST_TIMEOUT: u64 = 10;
+        if let Ok(c) = reqwest::Client::builder()
+                                        .timeout(Duration::from_secs(CLIENT_REQUEST_TIMEOUT))
+                                        .user_agent(DEFAULT_USER_AGENT.clone())
+                                        .build(){
+            c
+        }else{
+            reqwest::Client::new()
+        }
+    });
 
 ///BTCache provides a caching mechanism for downloading and storing files from URLs. 
 ///It generates SHA3-512 hashes of URLs to create unique file names and manages local storage of cached files.
@@ -265,7 +279,7 @@ mod bt_cache_tests {
     static INIT: Once = Once::new();
     fn ini_log() {
         INIT.call_once(|| {
-            build_logger("BACHUETECH", "UNIT TEST RUST LLAMA", LogLevel::VERBOSE, LogTarget::STD_ERROR, None );     
+            build_logger("BACHUETECH", "UNIT TEST RUST CACHE", LogLevel::VERBOSE, LogTarget::STD_ERROR, None );     
         });
     }
 
@@ -331,7 +345,7 @@ mod bt_cache_async_tests {
     static INIT: Once = Once::new();
     fn ini_log() {
         INIT.call_once(|| {
-            build_logger("BACHUETECH", "UNIT TEST RUST LLAMA", LogLevel::VERBOSE, LogTarget::STD_ERROR, None );     
+            build_logger("BACHUETECH", "UNIT TEST RUST CACHE", LogLevel::VERBOSE, LogTarget::STD_ERROR, None );     
         });
     }
 
