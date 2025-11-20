@@ -93,7 +93,40 @@ impl BTCache {
     ///                                         The file path cannot be retrieved due to invalid Unicode
     ///                                         File operations fail during download or path checking    
     pub async fn get_local_file_path_async(&self, url: &str) -> Result<String,Box<dyn Error>> {
-        let int_file_path = self.folder_path.join(Self::get_hash_string_base64(url));
+        //let int_file_path = self.folder_path.join(Self::get_hash_string_base64(url));
+        self.get_local_file_path_with_name_async(url, url).await
+        /*let path_check = int_file_path.try_exists();
+        if path_check.is_err() {
+            log_error!("get_local_file_path","Issue finding file '{:?}' trying downloading again",int_file_path);
+            Self::download_file_async(url, &int_file_path).await?;
+        }else{
+            if !path_check.unwrap(){
+                //File not found
+                Self::download_file_async(url, &int_file_path).await?;
+            }
+        }        
+
+        if let Some(full_path) = int_file_path.to_str(){
+            return Ok(full_path.to_owned())
+        }else{
+            return Err(get_error!("get_local_file_path","Unable to retrieve cached file path. Invalid Unicode Path").into())
+        }*/
+    } 
+
+    ///ASYNC Function that attempts to retrieve a local file path for a given URL. The method:
+    ///The method handles both cases where the file path check fails entirely (logging an error and attempting to download) 
+    ///and where the file doesn't exist at the expected location (performing a download).
+    /// 
+    /// #Parameters:
+    ///     * url: A string slice containing the URL of the file to retrieve from cache.
+    ///     * file_name: desire file name or file id. Useful when file may associuted to multiple URLs
+    /// 
+    /// #Returns:
+    ///     * Result<String, Box<dyn Error>>: Returns the full local file path as a string on success, or an error if:
+    ///                                         The file path cannot be retrieved due to invalid Unicode
+    ///                                         File operations fail during download or path checking    
+    pub async fn get_local_file_path_with_name_async(&self, url: &str, file_name: &str) -> Result<String,Box<dyn Error>> {
+        let int_file_path = self.folder_path.join(Self::get_hash_string_base64(file_name));
 
         let path_check = int_file_path.try_exists();
         if path_check.is_err() {
@@ -111,7 +144,7 @@ impl BTCache {
         }else{
             return Err(get_error!("get_local_file_path","Unable to retrieve cached file path. Invalid Unicode Path").into())
         }
-    } 
+    }    
 
     ///Async function that encodes the file bytes using standard base64 encoding
     /// 
@@ -124,7 +157,24 @@ impl BTCache {
     ///    The file cannot be read from the local cache
     ///    Base64 encoding fails
     pub async fn get_file_data_base64_async(&self, url: &str) -> Result<String,Box<dyn Error>> {
-        let full_file_path = self.get_local_file_path_async(url).await?;
+        let full_file_path = self.get_local_file_path_with_name_async(url, url).await?;
+        let file_data_bytes = fs::read(full_file_path)?;
+        Ok(general_purpose::STANDARD.encode(file_data_bytes))
+    }    
+
+    ///Async function that encodes the file bytes using standard base64 encoding
+    /// 
+    ///#Parameters
+    ///     * url: A string slice (&str) containing the URL of the file to retrieve
+    ///     * file_name: desire file name or file id. Useful when file may associuted to multiple URLs
+    /// 
+    ///#Returns
+    ///    Result<String, Box<dyn Error>>: Returns a String containing the base64-encoded file data on success, or an error if:
+    ///    The local file path cannot be determined
+    ///    The file cannot be read from the local cache
+    ///    Base64 encoding fails
+    pub async fn get_file_data_base64_with_name_async(&self, url: &str, file_name: &str) -> Result<String,Box<dyn Error>> {
+        let full_file_path = self.get_local_file_path_with_name_async(url, file_name).await?;
         let file_data_bytes = fs::read(full_file_path)?;
         Ok(general_purpose::STANDARD.encode(file_data_bytes))
     }    
@@ -215,14 +265,15 @@ impl BTCache {
     ///will fetch fresh data rather than using cached content.
     /// 
     /// #Parameters
-    /// * url: &str, A string slice representing the URL of the cached resource to be invalidated. This parameter is used to determine which cached file should be removed
+    /// * url_name_id: &str, A string slice representing the URL or Name ID of the cached resource to be invalidated. 
+    ///                      This parameter is used to determine which cached file should be removed
     /// 
     /// #Returns
     /// Result<(), Box<dyn Error>>
     ///     * Success: Ok(()) - Indicates that the cache file was successfully removed
     ///     * Error: Err(Box<dyn Error>) - Contains a boxed error object describing what went wrong during the cache invalidation process
-    pub async fn invalidate_cache_async(&self, url: &str)-> Result<(),Box<dyn Error>> {
-        let full_file_path = self.get_local_file_path_async(url).await?;
+    pub async fn invalidate_cache_async(&self, url_name_id: &str)-> Result<(),Box<dyn Error>> {
+        let full_file_path = self.get_local_file_path_with_name_async(url_name_id,url_name_id).await?;
         let _r = remove_file(full_file_path)?;
         Ok(())
     }
@@ -247,15 +298,15 @@ impl BTCache {
     ///and then returning the local file path where the refreshed content is stored.
     /// 
     /// #Parameters
-    /// * url: &str, A string slice representing the URL of the cached resource to be invalidated. This parameter is used to determine which cached file should be removed
+    /// * url_name_id: &str, A string slice representing the URL or Name ID of the cached resource to be invalidated. This parameter is used to determine which cached file should be removed
     /// 
     /// #Returns
     /// Result<(), Box<dyn Error>>:
     ///     * Success: Ok(String) - Returns the local file path where the refreshed cache content is stored
     ///     * Error: Err(Box<dyn Error>) - Contains a boxed error object describing what went wrong during the cache refresh process
-    pub async fn refresh_cache_async(&self, url: &str)-> Result<String,Box<dyn Error>> {
-       self.invalidate_cache_async(url).await?;
-       let file_path = self.get_local_file_path_async(url).await?;
+    pub async fn refresh_cache_async(&self, url_name_id: &str)-> Result<String,Box<dyn Error>> {
+       self.invalidate_cache_async(url_name_id).await?;
+       let file_path = self.get_local_file_path_with_name_async(url_name_id,url_name_id).await?;
        Ok(file_path)
     }    
 }
@@ -331,7 +382,69 @@ mod bt_cache_tests {
         log_verbose!("test_refresh_success","Result {:?}",r);
         assert!(r.is_ok())
     }
+}
 
+#[cfg(test)]
+mod bt_cache_with_name_async_tests {
+    use std::sync::Once;
+
+    use regex::Regex;
+    use bt_logger::{LogLevel, LogTarget, build_logger, log_verbose};
+    use super::*;
+
+    static INIT: Once = Once::new();
+    fn ini_log() {
+        INIT.call_once(|| {
+            build_logger("BACHUETECH", "UNIT TEST RUST CACHE", LogLevel::VERBOSE, LogTarget::STD_ERROR, None );     
+        });
+    }
+
+    const FILE_URL: &str = "https://www.google.com/s2/favicons?sz=64&domain=google.com";
+    const FILE_URL2: &str = "https://www.google.com/s2/favicons?sz=64&domain=walmart.com";
+    const FILE_URL3: &str = "https://www.google.com/s2/favicons?sz=64&domain=cnn.com";
+
+    const APP_NAME: &str = "bt_cache";    
+
+    #[tokio::test]
+    async fn test_get_file_path_success_async() {
+        let local_cache = BTCache::new(Some(APP_NAME)).unwrap();
+        let p = local_cache.get_local_file_path_with_name_async(FILE_URL3,"file1").await.unwrap();
+        let re = Regex::new(r"^/home/.*/\.local/share/bt_cache/cache/S6ZZaVaoYQsQDYaR7piO7byg3ThvoCZk4Gg4GWCVxac-qy1RvtBWTmdbS0OeEhJMviRfOG7fsVqGQcPoGIVD-w").unwrap();   
+        assert!(re.is_match(&p));
+    }
+
+    #[tokio::test]
+    async fn test_get_file_data_success_async() {
+        ini_log();
+        let local_cache = BTCache::new(Some(APP_NAME)).unwrap();
+        let p = local_cache.get_file_data_base64_with_name_async(FILE_URL,"file2").await;
+        log_verbose!("test_get_file_data_success_async","File: {:?}",p);
+        assert!(p.is_ok());
+    }    
+
+    #[tokio::test]
+    async fn test_get_file_data_fail_async() {
+        let local_cache = BTCache::new(Some(APP_NAME)).unwrap();
+        let p = local_cache.get_file_data_base64_with_name_async("http://invalidurl.com/fake_file.unknown","useless").await;
+        assert!(p.is_err());
+    }    
+
+    #[tokio::test]
+    async fn test_invalidate_success_async() {
+        let local_cache = BTCache::new(Some(APP_NAME)).unwrap();
+        let _ = local_cache.get_file_data_base64_with_name_async(FILE_URL2,"file4").await;
+        let r = local_cache.invalidate_cache_async("file4").await;
+        assert!(r.is_ok())
+    }
+
+    #[tokio::test]
+    async fn test_refresh_success_async() {
+        ini_log();
+        let local_cache = BTCache::new(Some(APP_NAME)).unwrap();
+        let r = local_cache.refresh_cache_async(FILE_URL).await;
+        log_verbose!("test_refresh_success_async","Res: {:?}",r);
+        assert!(r.is_ok())
+    }
 }
 
 #[cfg(test)]
@@ -384,7 +497,7 @@ mod bt_cache_async_tests {
     async fn test_invalidate_success_async() {
         let local_cache = BTCache::new(Some(APP_NAME)).unwrap();
         let _ = local_cache.get_file_data_base64_async(FILE_URL2).await;
-        let r = local_cache.invalidate_cache(FILE_URL2);
+        let r = local_cache.invalidate_cache_async(FILE_URL2).await;
         assert!(r.is_ok())
     }
 
@@ -396,5 +509,4 @@ mod bt_cache_async_tests {
         log_verbose!("test_refresh_success_async","Res: {:?}",r);
         assert!(r.is_ok())
     }
-
 }

@@ -34,7 +34,9 @@ match cache.refresh_cache("https://bachuetech.biz/fake_image.png") {
 * 0.1.4
     * Validate URL in advance for better error messaging    
 * 0.1.5
-    * Added 10 seconds timeout to file download and default user agent  
+    * Added 10 seconds timeout to file download and default user agent
+* 0.1.6
+    * Added functions supporting a file name/id as cache id        
 
 ## License
 GPL-3.0-only
