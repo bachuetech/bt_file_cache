@@ -27,8 +27,10 @@ match cache.refresh_cache("https://bachuetech.biz/fake_image.png") {
     * Initial Release
 * 0.1.1
     * Added invalidate cache and refresh cache functions
-* 0.1.1
-    * Update dependencies    
+* 0.1.2
+    * Update dependencies   
+* 0.1.3
+    * Added async functions for all the cache sync functions
 
 ## License
 GPL-3.0-only
