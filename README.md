@@ -31,6 +31,8 @@ match cache.refresh_cache("https://bachuetech.biz/fake_image.png") {
     * Update dependencies   
 * 0.1.3
     * Added async functions for all the cache sync functions
+* 0.1.4
+    * Validate URL in advance for better error messaging    
 
 ## License
 GPL-3.0-only

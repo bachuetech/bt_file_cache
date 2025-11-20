@@ -3,7 +3,7 @@ use std::{error::Error, fs::{self, remove_file}, io::Write, path::PathBuf};
 use base64::{Engine, engine::general_purpose};
 use bt_logger::{get_error, log_error};
 use once_cell::sync;
-use reqwest::Client;
+use reqwest::{Client, Url};
 use sha3::{Digest, Sha3_512};
 
 use crate::folder_manager::get_local_usr_data_path;
@@ -58,7 +58,8 @@ impl BTCache {
     ///#Returns
     /// *   Result<(), Box<dyn Error>>: Returns Ok(()) on successful download, or an error if the download or file creation fails.
     async fn download_file_async(url: &str, int_file_path: &PathBuf) -> Result<(), Box<dyn Error>>{
-        let download_response = HTTP_CLIENT.get(url).send().await?; //reqwest::blocking::get(url)?;
+        let parsed_url = Url::parse(url)?;
+        let download_response = HTTP_CLIENT.get(parsed_url).send().await?; //reqwest::blocking::get(url)?;
         let bytes = download_response.bytes().await?;
         let mut file = fs::File::create(int_file_path)?;
         file.write_all(&bytes)?;
@@ -79,6 +80,7 @@ impl BTCache {
     ///                                         File operations fail during download or path checking    
     pub async fn get_local_file_path_async(&self, url: &str) -> Result<String,Box<dyn Error>> {
         let int_file_path = self.folder_path.join(Self::get_hash_string_base64(url));
+
         let path_check = int_file_path.try_exists();
         if path_check.is_err() {
             log_error!("get_local_file_path","Issue finding file '{:?}' trying downloading again",int_file_path);
@@ -88,7 +90,8 @@ impl BTCache {
                 //File not found
                 Self::download_file_async(url, &int_file_path).await?;
             }
-        }
+        }        
+
         if let Some(full_path) = int_file_path.to_str(){
             return Ok(full_path.to_owned())
         }else{
@@ -121,7 +124,8 @@ impl BTCache {
     ///#Returns
     /// *   Result<(), Box<dyn Error>>: Returns Ok(()) on successful download, or an error if the download or file creation fails.
     fn download_file(url: &str, int_file_path: &PathBuf) -> Result<(), Box<dyn Error>>{
-        let download_response = reqwest::blocking::get(url)?;
+        let parsed_url = Url::parse(url)?;        
+        let download_response = reqwest::blocking::get(parsed_url)?;
         let bytes = download_response.bytes()?;
         let mut file = fs::File::create(int_file_path)?;
         file.write_all(&bytes)?;
@@ -255,6 +259,7 @@ mod bt_cache_tests {
     use super::*;
 
     const FILE_URL: &str = "https://avatars.githubusercontent.com/u/188628667?v=4";
+    //const FILE_URL: &str = "https://www.google.com/s2/favicons?sz=64&domain=indeed.com";
     const APP_NAME: &str = "bt_cache";    
 
     static INIT: Once = Once::new();
@@ -274,8 +279,10 @@ mod bt_cache_tests {
 
     #[test]
     fn test_get_file_data_success() {
+        ini_log();
         let local_cache = BTCache::new(Some(APP_NAME)).unwrap();
         let p = local_cache.get_file_data_base64(FILE_URL);
+        log_verbose!("test_get_file_data_success","Content: {:?}",p);
         assert!(p.is_ok());
     }    
 
@@ -328,21 +335,27 @@ mod bt_cache_async_tests {
         });
     }
 
-    const FILE_URL: &str = "https://avatars.githubusercontent.com/u/188628667?v=4";
+    //const FILE_URL: &str = "https://s.gravatar.com/avatar/5ff5566fb3d2f67fe25a9ed89953d876?s=480&r=pg&d=https%3A%2F%2Fcdn.auth0.com%2Favatars%2Fce.png";
+    const FILE_URL: &str = "https://www.google.com/s2/favicons?sz=64&domain=indeed.com";
+    const FILE_URL2: &str = "https://www.google.com/s2/favicons?sz=64&domain=monster.com";
+    const FILE_URL3: &str = "https://www.google.com/s2/favicons?sz=64&domain=quora.com";
+
     const APP_NAME: &str = "bt_cache";    
 
     #[tokio::test]
     async fn test_get_file_path_success_async() {
         let local_cache = BTCache::new(Some(APP_NAME)).unwrap();
-        let p = local_cache.get_local_file_path_async(FILE_URL).await.unwrap();
-        let re = Regex::new(r"^/home/.*/\.local/share/bt_cache/cache/Pe2MEfGkJXVt54yoLZ2ziRh9v4fGIJcRWQE98MtwcYTSNgJyE4ec6lZ4tSdolTCN9SA-wVrhmtP-8HJ-7jVWGg").unwrap();   
+        let p = local_cache.get_local_file_path_async(FILE_URL3).await.unwrap();
+        let re = Regex::new(r"^/home/.*/\.local/share/bt_cache/cache/JV0VrQPUrmKposXxQFD0TwLbPHK1fQb_hOouSb3BvaG-xqIm_Lw9GKyCyTvVDlc2v29sT-5lQgytuJbEVv2eyA").unwrap();   
         assert!(re.is_match(&p));
     }
 
     #[tokio::test]
     async fn test_get_file_data_success_async() {
+        ini_log();
         let local_cache = BTCache::new(Some(APP_NAME)).unwrap();
         let p = local_cache.get_file_data_base64_async(FILE_URL).await;
+        log_verbose!("test_get_file_data_success_async","File: {:?}",p);
         assert!(p.is_ok());
     }    
 
@@ -354,10 +367,10 @@ mod bt_cache_async_tests {
     }    
 
     #[tokio::test]
-    async fn test_invaldiate_success_async() {
+    async fn test_invalidate_success_async() {
         let local_cache = BTCache::new(Some(APP_NAME)).unwrap();
-        let _ = local_cache.get_file_data_base64_async(FILE_URL).await;
-        let r = local_cache.invalidate_cache(FILE_URL);
+        let _ = local_cache.get_file_data_base64_async(FILE_URL2).await;
+        let r = local_cache.invalidate_cache(FILE_URL2);
         assert!(r.is_ok())
     }
 
