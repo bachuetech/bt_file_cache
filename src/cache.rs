@@ -1,7 +1,7 @@
 use std::{env, error::Error, fs::{self, remove_file}, io::Write, path::PathBuf, time::Duration};
 
 use base64::{Engine, engine::general_purpose};
-use bt_logger::{get_error, log_error};
+use bt_logger::{get_error, log_error, log_verbose};
 use once_cell::sync;
 use reqwest::{Client, Url};
 use sha3::{Digest, Sha3_512};
@@ -77,7 +77,11 @@ impl BTCache {
         if  token.is_some(){
             request_builder = request_builder.bearer_auth(token.unwrap());
         }
-        let response = request_builder.send().await?; //reqwest::blocking::get(url)?;
+        let response = request_builder.send().await?; 
+        if response.status().is_client_error() || response.status().is_server_error(){
+            return Err(get_error!("download_file_async","Request Error: {}", response.status()).into())
+        }
+
         let bytes = response.bytes().await?;
         let mut file = fs::File::create(int_file_path)?;
         file.write_all(&bytes)?;
@@ -114,24 +118,6 @@ impl BTCache {
     ///                                         File operations fail during download or path checking    
     pub async fn get_local_file_path_with_name_async(&self, url: &str, file_name: &str) -> Result<String,Box<dyn Error>> {
         self.get_local_file_path_with_name_token_async(url, file_name, None).await
-        /*let int_file_path = self.get_file(file_name); //self.folder_path.join(Self::get_hash_string_base64(file_name));
-
-        let path_check = int_file_path.try_exists();
-        if path_check.is_err() {
-            log_error!("get_local_file_path","Issue finding file '{:?}' trying downloading again",int_file_path);
-            Self::download_file_async(url, &int_file_path, None).await?;
-        }else{
-            if !path_check.unwrap(){
-                //File not found
-                Self::download_file_async(url, &int_file_path, None).await?;
-            }
-        }        
-
-        if let Some(full_path) = int_file_path.to_str(){
-            return Ok(full_path.to_owned())
-        }else{
-            return Err(get_error!("get_local_file_path","Unable to retrieve cached file path. Invalid Unicode Path").into())
-        }*/
     }    
 
     ///ASYNC Function that attempts to retrieve a local file path for a given URL. The method:
@@ -157,7 +143,7 @@ impl BTCache {
         }else{
             if !path_check.unwrap(){
                 //File not found
-                Self::download_file_async(url, &int_file_path, None).await?;
+                Self::download_file_async(url, &int_file_path, token).await?;
             }
         }        
 
@@ -215,6 +201,7 @@ impl BTCache {
     ///    Base64 encoding fails
     pub async fn get_file_data_base64_with_name_token_async(&self, url: &str, file_name: &str, token: Option<&str>) -> Result<String,Box<dyn Error>> {
         let full_file_path = self.get_local_file_path_with_name_token_async(url, file_name, token).await?;
+log_verbose!("get_file_data_base64_with_name_token_async","Getting '{}' = '{}' . With AT {:?}",url,full_file_path, token);
         let file_data_bytes = fs::read(full_file_path)?;
         Ok(general_purpose::STANDARD.encode(file_data_bytes))
     }        
@@ -230,6 +217,11 @@ impl BTCache {
     fn download_file(url: &str, int_file_path: &PathBuf) -> Result<(), Box<dyn Error>>{
         let parsed_url = Url::parse(url)?;        
         let download_response = reqwest::blocking::get(parsed_url)?;
+
+        if download_response.status().is_client_error() || download_response.status().is_server_error(){
+            return Err(get_error!("download_file_async","Request Error: {}", download_response.status()).into())
+        }
+
         let bytes = download_response.bytes()?;
         let mut file = fs::File::create(int_file_path)?;
         file.write_all(&bytes)?;

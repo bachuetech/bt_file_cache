@@ -38,7 +38,10 @@ match cache.refresh_cache("https://bachuetech.biz/fake_image.png") {
 * 0.1.6
     * Added functions supporting a file name/id as cache id    
 * 0.1.7
-    * Added functions supporting access to URL using access token          
+    * Added functions supporting access to URL using access token   
+* 0.1.8
+    * Bug fix: fixed issue where token was not passed in some cases.
+    * Check download response status and return an error for 400s or 500s.
 
 ## License
 GPL-3.0-only
